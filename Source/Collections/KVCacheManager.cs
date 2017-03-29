@@ -14,6 +14,7 @@ namespace ExDevilLee.Collections
         private object locker = new object();
         private IDictionary<TKey, CacheItem> m_CacheDict;
         private Thread m_ThreadOfCheckExpiredItem;
+        private static readonly int IntervalTimeOfCheckExpiredItem = 10 * 1000;
         private static readonly bool TKeyIsValueType = typeof(TKey).IsValueType;
         private static readonly bool TValueIsValueType = typeof(TValue).IsValueType;
 
@@ -47,6 +48,7 @@ namespace ExDevilLee.Collections
                     keyListOfExpiredItem = new List<TKey>();
                     Parallel.ForEach(tmpArray, item =>
                     {
+                        if (!TKeyIsValueType && null == item.Key) return;
                         if (item.Value.IsExpired) keyListOfExpiredItem.Add(item.Key);
                     });
                 }
@@ -64,7 +66,7 @@ namespace ExDevilLee.Collections
                     }
                 }
 
-                Thread.Sleep(10 * 1000);
+                Thread.Sleep(IntervalTimeOfCheckExpiredItem);
             }
         }
 
@@ -110,6 +112,31 @@ namespace ExDevilLee.Collections
                     m_CacheDict[key] = item;
                 else
                     m_CacheDict.Add(key, item);
+            }
+        }
+
+        public void AddRangeItems(IEnumerable<KeyValuePair<TKey, TValue>> items, uint expirationOfSeconds)
+        {
+            if (null == items) throw new ArgumentNullException(nameof(items));
+
+            List<CacheItem> listOfCacheItem = new List<CacheItem>();
+            foreach (var item in items)
+            {
+                listOfCacheItem.Add(new CacheItem(item.Key, item.Value, expirationOfSeconds));
+            }
+
+            lock (locker)
+            {
+                if (null == m_CacheDict)
+                    m_CacheDict = new Dictionary<TKey, CacheItem>();
+
+                foreach (var item in listOfCacheItem)
+                {
+                    if (m_CacheDict.ContainsKey(item.Key))
+                        m_CacheDict[item.Key] = item;
+                    else
+                        m_CacheDict.Add(item.Key, item);
+                }
             }
         }
 
