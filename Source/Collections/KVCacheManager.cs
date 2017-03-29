@@ -168,6 +168,20 @@ namespace ExDevilLee.Collections
             }
         }
 
+        public void RemoveRangeItems(IEnumerable<TKey> keys)
+        {
+            if (null == keys) throw new ArgumentNullException(nameof(keys));
+
+            lock (locker)
+            {
+                foreach (var key in keys)
+                {
+                    if (!TKeyIsValueType && null == key) continue;
+                    if (m_CacheDict.ContainsKey(key)) m_CacheDict.Remove(key);
+                }
+            }
+        }
+
         public void Clear()
         {
             lock (locker) m_CacheDict = null;
