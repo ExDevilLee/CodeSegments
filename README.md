@@ -1,2 +1,5 @@
 # CodeSegments
-In this repository I will sharing some useful code segments.
+In this repository I will share some useful code segments.
+
+## Collections
+* KVCacheManager : It's use to manage collections with expiration time.
