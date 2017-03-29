@@ -14,8 +14,8 @@ namespace ExDevilLee.Collections
         private object locker = new object();
         private IDictionary<TKey, CacheItem> m_CacheDict;
         private Thread m_ThreadOfCheckExpiredItem;
-        private static bool TKeyIsValueType = typeof(TKey).IsValueType;
-        private static bool TValueIsValueType = typeof(TValue).IsValueType;
+        private static readonly bool TKeyIsValueType = typeof(TKey).IsValueType;
+        private static readonly bool TValueIsValueType = typeof(TValue).IsValueType;
 
         public KVCacheManager()
         {
@@ -96,11 +96,11 @@ namespace ExDevilLee.Collections
             }
         }
 
-        public void AddItem(TKey key, TValue value, uint expiration)
+        public void AddItem(TKey key, TValue value, uint expirationOfSeconds)
         {
             if (!TKeyIsValueType && null == key) throw new ArgumentNullException(nameof(key));
 
-            var item = new CacheItem(key, value, expiration);
+            var item = new CacheItem(key, value, expirationOfSeconds);
             lock (locker)
             {
                 if (null == m_CacheDict)
@@ -172,13 +172,13 @@ namespace ExDevilLee.Collections
                 }
             }
 
-            public CacheItem(TKey key, TValue value, uint expiration)
+            public CacheItem(TKey key, TValue value, uint expirationOfSeconds)
             {
                 if (!TKeyIsValueType && null == key) throw new ArgumentNullException(nameof(key));
 
                 this.Key = key;
                 m_Value = value;
-                this.ExpirationOfSeconds = expiration;
+                this.ExpirationOfSeconds = expirationOfSeconds;
                 m_Stopwatch.Start();
             }
 
