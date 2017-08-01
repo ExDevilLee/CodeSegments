@@ -14,12 +14,31 @@ namespace ExDevilLee.Collections
         private object locker = new object();
         private IDictionary<TKey, CacheItem> m_CacheDict;
         private Thread m_ThreadOfCheckExpiredItem;
-        private static readonly int IntervalTimeOfCheckExpiredItem = 10 * 1000;
+        private int m_IntervalTimeOfCheckExpiredItemSeconds;
         private static readonly bool TKeyIsValueType = typeof(TKey).IsValueType;
         private static readonly bool TValueIsValueType = typeof(TValue).IsValueType;
 
-        public KVCacheManager()
+        public class ItemExpiredEventArgs : EventArgs
         {
+            public TKey Key { get; set; }
+            public TValue Value { get; set; }
+            public ItemExpiredEventArgs(TKey key, TValue value)
+            {
+                this.Key = key;
+                this.Value = value;
+            }
+        }
+        public event EventHandler<ItemExpiredEventArgs> ItemExpired;
+        protected virtual void OnItemExpired(ItemExpiredEventArgs e)
+        {
+            EventHandler<ItemExpiredEventArgs> h = ItemExpired;
+            if (null != h) h(this, e);
+        }
+
+        public KVCacheManager() : this(5) { }
+        public KVCacheManager(int intervalTimeOfCheckExpiredItemSeconds)
+        {
+            m_IntervalTimeOfCheckExpiredItemSeconds = intervalTimeOfCheckExpiredItemSeconds;
             m_CacheDict = new Dictionary<TKey, CacheItem>();
             m_ThreadOfCheckExpiredItem = new Thread(this.CheckAndRemoveExpiredItem);
             m_ThreadOfCheckExpiredItem.IsBackground = true;
@@ -42,31 +61,35 @@ namespace ExDevilLee.Collections
                     }
                 }
 
-                List<TKey> keyListOfExpiredItem = null;
+                List<CacheItem> expiredItemList = null;
                 if (null != tmpArray && tmpArray.Length > 0)
                 {
-                    keyListOfExpiredItem = new List<TKey>();
+                    expiredItemList = new List<CacheItem>();
                     Parallel.ForEach(tmpArray, item =>
                     {
                         if (!TKeyIsValueType && null == item.Key) return;
-                        if (item.Value.IsExpired) keyListOfExpiredItem.Add(item.Key);
+                        if (item.Value.IsExpired) expiredItemList.Add(item.Value);
                     });
                 }
 
-                if (null != keyListOfExpiredItem && keyListOfExpiredItem.Count > 0)
+                if (null != expiredItemList && expiredItemList.Count > 0)
                 {
                     lock (locker)
                     {
-                        Parallel.ForEach(keyListOfExpiredItem, key =>
+                        Parallel.ForEach(expiredItemList, item =>
                         {
-                            if (!TKeyIsValueType && null == key) return;
-                            if (!m_CacheDict.ContainsKey(key)) return;
-                            if (m_CacheDict[key].IsExpired) m_CacheDict.Remove(key);
+                            if (!TKeyIsValueType && null == item.Key) return;
+                            if (!m_CacheDict.ContainsKey(item.Key)) return;
+                            if (m_CacheDict[item.Key].IsExpired)
+                            {
+                                m_CacheDict.Remove(item.Key);
+                                this.OnItemExpired(new ItemExpiredEventArgs(item.Key, item.Value));
+                            }
                         });
                     }
                 }
 
-                Thread.Sleep(IntervalTimeOfCheckExpiredItem);
+                Thread.Sleep(m_IntervalTimeOfCheckExpiredItemSeconds * 1000);
             }
         }
 
