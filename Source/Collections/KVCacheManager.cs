@@ -232,7 +232,7 @@ namespace ExDevilLee.Collections
             {
                 get
                 {
-                    return m_Stopwatch.Elapsed.Seconds > ExpirationOfSeconds;
+                    return m_Stopwatch.Elapsed.TotalSeconds > ExpirationOfSeconds;
                 }
             }
 
